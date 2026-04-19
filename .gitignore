@@ -1,0 +1,4 @@
+datasets/*
+outputs/*
+.idea/*
+__pycache__/*
