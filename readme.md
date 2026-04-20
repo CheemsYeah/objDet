@@ -161,7 +161,7 @@ python train.py --dataset toy --model faster_rcnn --backbone auto --epochs 3 --b
 python train.py --dataset VOC --model rcnn --epochs 30 --batch_size 32 --output_dir outputs\rcnn_voc
 python train.py --dataset VOC --model fast_rcnn --epochs 30 --batch_size 32 --output_dir outputs\fast_rcnn_voc
 python train.py --dataset VOC --model faster_rcnn --epochs 30 --batch_size 32 --output_dir outputs\faster_rcnn_voc --amp
-python train.py --dataset VOC --model yolo --epochs 30 --batch_size 32 --output_dir outputs\yolo_voc
+python train.py --dataset VOC --model yolo --epochs 30 --batch_size 128 --output_dir outputs\yolo_voc --amp
 python train.py --dataset VOC --model ssd --epochs 30 --batch_size 32 --output_dir outputs\ssd_voc
 python train.py --dataset VOC --model detr --epochs 30 --batch_size 32 --output_dir outputs\detr_voc
 

@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--num_workers", type=int, default=0)
+    parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--output_dir", type=str, default="outputs")
     parser.add_argument("--resume", type=str, default="")
     parser.add_argument("--save_every", type=int, default=1)
@@ -79,6 +79,46 @@ def append_epoch_log(log_path, row):
         if not file_exists:
             writer.writeheader()
         writer.writerow(row)
+
+
+def log_epoch_zero_if_needed(
+    log_path,
+    args,
+    model,
+    val_loader,
+    device,
+    use_amp,
+    num_classes,
+    non_blocking,
+):
+    if args.resume:
+        return
+    if log_path.exists():
+        return
+
+    val_loss = validate_epoch(
+        args.model,
+        model,
+        val_loader,
+        device,
+        use_amp,
+        args.input_size,
+        num_classes,
+        non_blocking,
+    )
+
+    append_epoch_log(log_path, {
+        "epoch": 0,
+        "model": args.model,
+        "backbone": args.backbone,
+        "dataset": args.dataset,
+        "train_loss": "",
+        "val_loss": f"{val_loss:.6f}",
+        "lr": f"{0.0:.8f}",
+        "epoch_time_sec": f"{0.0:.4f}",
+        "iter_time_sec": f"{0.0:.4f}",
+        "checkpoint": "",
+    })
 
 
 def save_checkpoint(checkpoint_path, model, optimizer, lr_scheduler, scaler, epoch, args, best_val_loss):
@@ -396,6 +436,8 @@ def main():
     args = parse_args()
     args.backbone = resolve_backbone_name(args.model, args.backbone)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = True
     pin_memory = device.type == "cuda"
     non_blocking = pin_memory
     use_amp = args.amp and device.type == "cuda"
@@ -455,6 +497,17 @@ def main():
             device,
         )
         print(f"Resume start epoch: {start_epoch + 1}")
+
+    log_epoch_zero_if_needed(
+        log_path,
+        args,
+        model,
+        val_loader,
+        device,
+        use_amp,
+        num_classes,
+        non_blocking,
+    )
 
     for epoch in range(start_epoch, args.epochs):
         model.train()
