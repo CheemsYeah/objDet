@@ -4,7 +4,11 @@ import torch
 from torchvision import datasets, transforms
 
 from utils.toy_dataset import TinyDetectionDataset
-from utils.yolo_detection_dataset import YOLODetectionDataset, infer_num_classes_from_labels
+from utils.yolo_detection_dataset import (
+    YOLODetectionDataset,
+    infer_num_classes_from_data_yaml,
+    infer_num_classes_from_labels,
+)
 
 
 def custom_collate_fn(batch):
@@ -83,8 +87,8 @@ class VOCDetectionTransform:
             labels.append(voc_classes[name])
 
         return img_tensor, {
-            "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64),
+            "boxes": torch.tensor(boxes, dtype=torch.float32) if boxes else torch.zeros((0, 4), dtype=torch.float32),
+            "labels": torch.tensor(labels, dtype=torch.int64) if labels else torch.zeros((0,), dtype=torch.int64),
         }
 
 
@@ -113,10 +117,10 @@ class COCODetectionTransform:
             iscrowd.append(int(annotation.get("iscrowd", 0)))
 
         return img_tensor, {
-            "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.int64),
-            "area": torch.tensor(areas, dtype=torch.float32),
-            "iscrowd": torch.tensor(iscrowd, dtype=torch.int64),
+            "boxes": torch.tensor(boxes, dtype=torch.float32) if boxes else torch.zeros((0, 4), dtype=torch.float32),
+            "labels": torch.tensor(labels, dtype=torch.int64) if labels else torch.zeros((0,), dtype=torch.int64),
+            "area": torch.tensor(areas, dtype=torch.float32) if areas else torch.zeros((0,), dtype=torch.float32),
+            "iscrowd": torch.tensor(iscrowd, dtype=torch.int64) if iscrowd else torch.zeros((0,), dtype=torch.int64),
         }
 
 
@@ -144,7 +148,11 @@ def get_num_classes(dataset_name, root_dir="./datasets"):
         "COCO": 91,
     }
     if dataset_name == "CONSTRUCTION_PPE":
-        labels_dir = get_construction_ppe_root(root_dir) / "labels" / "train"
+        dataset_root = get_construction_ppe_root(root_dir)
+        num_classes = infer_num_classes_from_data_yaml(dataset_root)
+        if num_classes is not None:
+            return num_classes
+        labels_dir = dataset_root / "labels" / "train"
         return infer_num_classes_from_labels(labels_dir)
     if dataset_name not in mapping:
         raise ValueError(f"Unsupported Dataset: {dataset_name}")

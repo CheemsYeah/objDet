@@ -51,6 +51,13 @@ def infer_num_classes_from_labels(labels_dir):
     return max_class_id + 2 if max_class_id >= 0 else 1
 
 
+def infer_num_classes_from_data_yaml(dataset_root):
+    class_names = _extract_names_from_data_yaml(dataset_root)
+    if class_names is None:
+        return None
+    return len(class_names) + 1
+
+
 class YOLODetectionDataset(Dataset):
     def __init__(self, dataset_root, split="train"):
         self.dataset_root = Path(dataset_root)

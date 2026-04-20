@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.transforms import functional as TF
 from tqdm import tqdm
@@ -407,9 +408,15 @@ def resolve_backbone_name(model_name, backbone_name):
     return backbone_name
 
 
+def set_batchnorm_eval(module):
+    if isinstance(module, nn.modules.batchnorm._BatchNorm):
+        module.eval()
+
+
 def validate_epoch(model_name, model, val_loader, device, use_amp, input_size, num_classes, non_blocking):
     if model_name == "faster_rcnn":
         model.train()
+        model.apply(set_batchnorm_eval)
     else:
         model.eval()
 

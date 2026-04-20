@@ -155,8 +155,6 @@ def setup_construction_ppe(root_dir="./datasets/construction_ppe"):
     print("=" * 60)
     print(f"[*] Source: {CONSTRUCTION_PPE_URL}")
 
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)
     root_dir.mkdir(parents=True, exist_ok=True)
 
