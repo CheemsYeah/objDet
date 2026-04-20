@@ -38,9 +38,10 @@ objDet/
 ├─ utils/
 │  ├─ dataset.py              # 数据集加载
 │  ├─ toy_dataset.py          # 内置小数据集
+│  ├─ yolo_detection_dataset.py # YOLO 格式数据集加载
 │  ├─ metrics.py              # 检测指标
 │  └─ selective_search.py     # Selective Search
-├─ download_dataset.py        # 下载数据集脚本
+├─ download_dataset.py        # 下载并准备数据集脚本
 ├─ plot_results.py            # 绘制结果
 ├─ requirements.txt           # 项目依赖
 ├─ train.py                   # 统一训练入口
@@ -74,18 +75,46 @@ pip install -r requirements.txt
 - checkpoint 是否正常保存
 - log 是否正常记录
 
-### 2. VOC / COCO
+### 2. VOC / COCO / Construction-PPE
 
 训练入口也支持：
 
 - `VOC`
 - `COCO`
+- `CONSTRUCTION_PPE`
 
 示例：
 
 ```powershell
 python train.py --dataset VOC --model faster_rcnn
 python train.py --dataset COCO --model faster_rcnn
+```
+
+### 3. Construction-PPE
+
+`Construction-PPE` 已经整合到 `download_dataset.py`，可以直接一键下载并整理到项目目录。
+
+先执行下载脚本：
+
+```powershell
+conda activate torch290
+python download_dataset.py
+```
+
+然后选择：
+
+```powershell
+3
+```
+
+脚本会自动从 Ultralytics 提供的 zip 下载 `Construction-PPE`，并整理到 `datasets\construction_ppe`。
+
+如果你更想手动下载，也可以直接在浏览器下载官方 zip，解压到 `datasets\construction_ppe`，目录中需要包含 `images/` 和 `labels/`。
+
+准备完成后就可以直接训练：
+
+```powershell
+python train.py --dataset CONSTRUCTION_PPE --model faster_rcnn --backbone auto --amp
 ```
 
 ## 支持的模型切换
@@ -160,7 +189,7 @@ python train.py --dataset toy --model faster_rcnn --backbone auto --epochs 3 --b
 ```powershell
 python train.py --dataset VOC --model rcnn --epochs 30 --batch_size 32 --output_dir outputs\rcnn_voc
 python train.py --dataset VOC --model fast_rcnn --epochs 30 --batch_size 32 --output_dir outputs\fast_rcnn_voc
-python train.py --dataset VOC --model faster_rcnn --epochs 30 --batch_size 32 --output_dir outputs\faster_rcnn_voc --amp
+python train.py --dataset VOC --model faster_rcnn --epochs 30 --batch_size 128 --output_dir outputs\faster_rcnn_voc --amp
 python train.py --dataset VOC --model yolo --epochs 30 --batch_size 128 --output_dir outputs\yolo_voc --amp
 python train.py --dataset VOC --model ssd --epochs 30 --batch_size 32 --output_dir outputs\ssd_voc
 python train.py --dataset VOC --model detr --epochs 30 --batch_size 32 --output_dir outputs\detr_voc
@@ -171,6 +200,8 @@ python train.py --dataset COCO --model faster_rcnn --epochs 30 --batch_size 32 -
 python train.py --dataset COCO --model yolo --epochs 30 --batch_size 32 --output_dir outputs\yolo_coco
 python train.py --dataset COCO --model ssd --epochs 30 --batch_size 32 --output_dir outputs\ssd_coco
 python train.py --dataset COCO --model detr --epochs 30 --batch_size 32 --output_dir outputs\detr_coco
+
+python train.py --dataset CONSTRUCTION_PPE --model faster_rcnn --epochs 30 --batch_size 128 --output_dir outputs\construction_ppe_faster --amp
 ```
 
 ### 3. 同一模型切换不同 backbone
@@ -290,7 +321,7 @@ CSV 会记录每个 epoch 的信息，便于后续画图和分析：
 ```text
 --model               模型名称，可选 rcnn / fast_rcnn / faster_rcnn / yolo / ssd / detr
 --backbone            backbone，可选 auto / resnet18 / resnet34 / resnet50 / mobilenetv3 / cspdarknet
---dataset             数据集，可选 toy / VOC / COCO
+--dataset             数据集，可选 toy / VOC / COCO / CONSTRUCTION_PPE
 --epochs              训练轮数
 --batch_size          批大小
 --lr                  学习率

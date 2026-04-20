@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import torch
 from torchvision import datasets, transforms
 
 from utils.toy_dataset import TinyDetectionDataset
+from utils.yolo_detection_dataset import YOLODetectionDataset, infer_num_classes_from_labels
 
 
 def custom_collate_fn(batch):
@@ -9,29 +12,25 @@ def custom_collate_fn(batch):
 
 
 def coco_target_transform(target):
-    """专门为 COCO 数据集处理标签的转换器"""
     boxes = []
     labels = []
     for obj in target:
-        # COCO 原生格式是 [x_min, y_min, width, height]
-        x, y, w, h = obj['bbox']
-
-        # 转换为 PyTorch 需要的 [x_min, y_min, x_max, y_max]
+        x, y, w, h = obj["bbox"]
         if w > 0 and h > 0:
             boxes.append([x, y, x + w, y + h])
-            # COCO 的类别 ID 并不是连续的 (1~90中间有跳过)
-            labels.append(obj['category_id'])
+            labels.append(obj["category_id"])
 
-    target_dict = {}
-    if len(boxes) > 0:
-        target_dict['boxes'] = torch.tensor(boxes, dtype=torch.float32)
-        target_dict['labels'] = torch.tensor(labels, dtype=torch.int64)
-    else:
-        # 🔥 关键修复：如果没有边界框，必须生成 [0, 4] 形状的空张量！
-        target_dict['boxes'] = torch.zeros((0, 4), dtype=torch.float32)
-        target_dict['labels'] = torch.zeros((0,), dtype=torch.int64)
+    if boxes:
+        return {
+            "boxes": torch.tensor(boxes, dtype=torch.float32),
+            "labels": torch.tensor(labels, dtype=torch.int64),
+        }
 
-    return target_dict
+    return {
+        "boxes": torch.zeros((0, 4), dtype=torch.float32),
+        "labels": torch.zeros((0,), dtype=torch.int64),
+    }
+
 
 class VOCDetectionTransform:
     def __call__(self, image, target):
@@ -83,11 +82,10 @@ class VOCDetectionTransform:
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(voc_classes[name])
 
-        target_dict = {
+        return img_tensor, {
             "boxes": torch.tensor(boxes, dtype=torch.float32),
             "labels": torch.tensor(labels, dtype=torch.int64),
         }
-        return img_tensor, target_dict
 
 
 class COCODetectionTransform:
@@ -114,21 +112,40 @@ class COCODetectionTransform:
             areas.append(float(annotation.get("area", width * height)))
             iscrowd.append(int(annotation.get("iscrowd", 0)))
 
-        target_dict = {
+        return img_tensor, {
             "boxes": torch.tensor(boxes, dtype=torch.float32),
             "labels": torch.tensor(labels, dtype=torch.int64),
             "area": torch.tensor(areas, dtype=torch.float32),
             "iscrowd": torch.tensor(iscrowd, dtype=torch.int64),
         }
-        return img_tensor, target_dict
 
 
-def get_num_classes(dataset_name):
+def get_construction_ppe_root(root_dir="./datasets"):
+    return Path(root_dir) / "construction_ppe"
+
+
+def resolve_construction_ppe_split(root_dir, train):
+    dataset_root = get_construction_ppe_root(root_dir)
+    if train:
+        return "train"
+    for split_name in ("valid", "val", "test"):
+        if (dataset_root / "images" / split_name).exists():
+            return split_name
+    raise FileNotFoundError(
+        f"Could not find validation split under {dataset_root / 'images'}. "
+        f"Expected one of: valid, val, test."
+    )
+
+
+def get_num_classes(dataset_name, root_dir="./datasets"):
     mapping = {
         "toy": 4,
         "VOC": 21,
         "COCO": 91,
     }
+    if dataset_name == "CONSTRUCTION_PPE":
+        labels_dir = get_construction_ppe_root(root_dir) / "labels" / "train"
+        return infer_num_classes_from_labels(labels_dir)
     if dataset_name not in mapping:
         raise ValueError(f"Unsupported Dataset: {dataset_name}")
     return mapping[dataset_name]
@@ -168,8 +185,11 @@ def get_dataloader(
             root=img_dir,
             annFile=ann_file,
             transform=transforms.ToTensor(),
-            target_transform=coco_target_transform  # <--- 新增这一行
+            target_transform=coco_target_transform
         )
+    elif dataset_name == "CONSTRUCTION_PPE":
+        split = resolve_construction_ppe_split(root_dir, train)
+        dataset = YOLODetectionDataset(get_construction_ppe_root(root_dir), split=split)
     else:
         raise ValueError("Unsupported Dataset")
 
@@ -183,5 +203,6 @@ def get_dataloader(
 
     if num_workers > 0:
         dataloader_kwargs["persistent_workers"] = True
+        dataloader_kwargs["prefetch_factor"] = 4
 
     return torch.utils.data.DataLoader(dataset, **dataloader_kwargs)

@@ -33,7 +33,7 @@ def parse_args():
         default="auto",
         choices=["auto", "resnet18", "resnet34", "resnet50", "mobilenetv3", "cspdarknet"],
     )
-    parser.add_argument("--dataset", type=str, default="VOC", choices=["toy", "VOC", "COCO"])
+    parser.add_argument("--dataset", type=str, default="VOC", choices=["toy", "VOC", "COCO", "CONSTRUCTION_PPE"])
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
@@ -515,9 +515,9 @@ def main():
         epoch_start = time.time()
 
         print(f"\nEpoch {epoch + 1}/{args.epochs}")
-        pbar = tqdm(train_loader, desc="Training")
+        pbar = tqdm(train_loader, desc="Training", dynamic_ncols=True, mininterval=0.5)
 
-        for images, targets in pbar:
+        for step, (images, targets) in enumerate(pbar, start=1):
             iter_start = time.time()
             optimizer.zero_grad(set_to_none=True)
 
@@ -539,10 +539,11 @@ def main():
 
             epoch_loss += loss.item()
             iter_time = time.time() - iter_start
-            pbar.set_postfix({
-                "loss": f"{loss.item():.4f}",
-                "iter_s": f"{iter_time:.2f}",
-            })
+            if step == 1 or step % 10 == 0 or step == len(train_loader):
+                pbar.set_postfix({
+                    "loss": f"{loss.item():.4f}",
+                    "iter_s": f"{iter_time:.2f}",
+                })
 
         lr_scheduler.step()
         epoch_time = time.time() - epoch_start
