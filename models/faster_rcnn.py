@@ -7,7 +7,7 @@ from models.backbone import ResNetBackbone
 
 
 class FasterRCNNDetector(nn.Module):
-    def __init__(self, num_classes, pretrained_backbone=False, backbone_name="resnet50"):
+    def __init__(self, num_classes, pretrained_backbone=False, backbone_name="resnet50", input_size=256):
         super(FasterRCNNDetector, self).__init__()
 
         # 1. 实例化我们统一的 ResNet-50 Backbone
@@ -27,7 +27,7 @@ class FasterRCNNDetector(nn.Module):
         # 2. 定义 RPN 的锚框生成器 (Anchor Generator)
         # 在特征图的每个像素点生成不同面积和比例的锚框 (Anchors)
         anchor_generator = AnchorGenerator(
-            sizes=((32, 64, 128, 256, 512),),
+            sizes=((16, 32, 64, 128),),
             aspect_ratios=((0.5, 1.0, 2.0),)
         )
 
@@ -44,8 +44,17 @@ class FasterRCNNDetector(nn.Module):
         self.model = TV_FasterRCNN(
             backbone=self.backbone_with_conv,
             num_classes=num_classes,
+            min_size=input_size,
+            max_size=input_size,
             rpn_anchor_generator=anchor_generator,
-            box_roi_pool=roi_pooler
+            box_roi_pool=roi_pooler,
+            rpn_pre_nms_top_n_train=512,
+            rpn_pre_nms_top_n_test=256,
+            rpn_post_nms_top_n_train=128,
+            rpn_post_nms_top_n_test=64,
+            rpn_batch_size_per_image=128,
+            box_batch_size_per_image=128,
+            box_detections_per_img=50,
         )
 
     def forward(self, images, targets=None):

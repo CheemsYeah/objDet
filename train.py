@@ -109,7 +109,7 @@ def load_checkpoint(checkpoint_path, model, optimizer, lr_scheduler, scaler, dev
     return start_epoch, best_val_loss
 
 
-def create_model(model_name, num_classes, pretrained_backbone, backbone_name):
+def create_model(model_name, num_classes, pretrained_backbone, backbone_name, input_size):
     if backbone_name not in MODEL_BACKBONE_CHOICES[model_name]:
         supported = ", ".join(MODEL_BACKBONE_CHOICES[model_name])
         raise ValueError(f"Backbone {backbone_name} is not supported for {model_name}. Supported: {supported}.")
@@ -118,7 +118,12 @@ def create_model(model_name, num_classes, pretrained_backbone, backbone_name):
     if model_name == "fast_rcnn":
         return FastRCNNDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "faster_rcnn":
-        return FasterRCNNDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return FasterRCNNDetector(
+            num_classes=num_classes,
+            pretrained_backbone=pretrained_backbone,
+            backbone_name=backbone_name,
+            input_size=input_size,
+        )
     if model_name == "yolo":
         return YOLODetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "ssd":
@@ -430,7 +435,7 @@ def main():
     )
 
     num_classes = get_num_classes(args.dataset)
-    model = create_model(args.model, num_classes, args.pretrained_backbone, args.backbone)
+    model = create_model(args.model, num_classes, args.pretrained_backbone, args.backbone, args.input_size)
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
