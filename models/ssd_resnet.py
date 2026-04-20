@@ -11,9 +11,9 @@ from torchvision.models import (
 )
 
 
-class SSD_ResNet50(nn.Module):
+class SSDDetector(nn.Module):
     def __init__(self, num_classes, pretrained_backbone=False, backbone_name="resnet50"):
-        super(SSD_ResNet50, self).__init__()
+        super(SSDDetector, self).__init__()
         self.num_classes = num_classes
 
         if backbone_name == "resnet18":
@@ -72,3 +72,7 @@ class SSD_ResNet50(nn.Module):
             confs.append(conf_head(feat).permute(0, 2, 3, 1).contiguous().view(feat.size(0), -1, self.num_classes))
 
         return torch.cat(locs, dim=1), torch.cat(confs, dim=1)
+
+
+class SSD_ResNet50(SSDDetector):
+    pass

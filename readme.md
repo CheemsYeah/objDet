@@ -26,7 +26,8 @@
 objDet/
 ├─ datasets/                  # 数据集目录
 ├─ models/                    # 模型定义
-│  ├─ backbone.py             # ResNet50 backbone
+│  ├─ backbone.py             # 通用 backbone 配置与默认策略
+│  ├─ yolo_backbones.py       # YOLO 可选 backbone
 │  ├─ rcnn.py                 # R-CNN
 │  ├─ fast_rcnn.py            # Fast R-CNN
 │  ├─ faster_rcnn.py          # Faster R-CNN
@@ -40,6 +41,7 @@ objDet/
 │  ├─ metrics.py              # 检测指标
 │  └─ selective_search.py     # Selective Search
 ├─ download_dataset.py        # 下载数据集脚本
+├─ plot_results.py            # 绘制结果
 ├─ requirements.txt           # 项目依赖
 ├─ train.py                   # 统一训练入口
 └─ readme.md                  # 项目说明
@@ -47,7 +49,7 @@ objDet/
 
 ## 环境准备
 
-本项目默认使用你的 Conda 环境 `torch290`。
+Conda 环境，如 `conda create -n torch290`。
 
 ### 1. 激活环境
 
@@ -102,6 +104,7 @@ detr
 `train.py` 里的 `--backbone` 参数当前支持：
 
 ```text
+auto
 resnet18
 resnet34
 resnet50
@@ -113,8 +116,27 @@ cspdarknet
 
 - `resnet18 / resnet34 / resnet50` 可以用于当前项目里的所有模型
 - `mobilenetv3 / cspdarknet` 当前主要用于 `YOLO` 的 backbone 对比实验
+- `--backbone auto` 会按“速度优先”自动选择默认 backbone
 
-更推荐用 `YOLO` 做 backbone 对比实验，例如：
+当前默认的速度优先 backbone 映射如下：
+
+```text
+rcnn        -> resnet18
+fast_rcnn   -> resnet18
+faster_rcnn -> resnet18
+yolo        -> mobilenetv3
+ssd         -> resnet18
+detr        -> resnet18
+```
+
+如果你只想直接跑最快的配置，推荐直接使用 `--backbone auto`，例如：
+
+```powershell
+python train.py --dataset toy --model faster_rcnn --backbone auto
+python train.py --dataset toy --model yolo --backbone auto
+```
+
+如果你还想做 backbone 对比实验，更推荐用 `YOLO` 来对比，例如：
 
 ```powershell
 python train.py --dataset toy --model yolo --backbone resnet18
@@ -130,18 +152,25 @@ python train.py --dataset toy --model yolo --backbone cspdarknet
 
 ```powershell
 conda activate torch290
-python train.py --dataset toy --model faster_rcnn --epochs 3 --batch_size 2 --output_dir outputs\faster_toy
+python train.py --dataset toy --model faster_rcnn --backbone auto --epochs 3 --batch_size 4 --output_dir outputs\faster_toy
 ```
 
 ### 2. 切换不同模型
 
 ```powershell
-python train.py --dataset toy --model rcnn --epochs 3 --batch_size 2 --output_dir outputs\rcnn_toy
-python train.py --dataset toy --model fast_rcnn --epochs 3 --batch_size 2 --output_dir outputs\fast_rcnn_toy
-python train.py --dataset toy --model faster_rcnn --epochs 3 --batch_size 2 --output_dir outputs\faster_rcnn_toy
-python train.py --dataset toy --model yolo --epochs 3 --batch_size 2 --output_dir outputs\yolo_toy
-python train.py --dataset toy --model ssd --epochs 3 --batch_size 2 --output_dir outputs\ssd_toy
-python train.py --dataset toy --model detr --epochs 3 --batch_size 2 --output_dir outputs\detr_toy
+python train.py --dataset VOC --model rcnn --epochs 30 --batch_size 32 --output_dir outputs\rcnn_voc
+python train.py --dataset VOC --model fast_rcnn --epochs 30 --batch_size 32 --output_dir outputs\fast_rcnn_voc
+python train.py --dataset VOC --model faster_rcnn --epochs 30 --batch_size 32 --output_dir outputs\faster_rcnn_voc
+python train.py --dataset VOC --model yolo --epochs 30 --batch_size 32 --output_dir outputs\yolo_voc
+python train.py --dataset VOC --model ssd --epochs 30 --batch_size 32 --output_dir outputs\ssd_voc
+python train.py --dataset VOC --model detr --epochs 30 --batch_size 32 --output_dir outputs\detr_voc
+
+python train.py --dataset COCO --model rcnn --epochs 30 --batch_size 32 --output_dir outputs\rcnn_coco
+python train.py --dataset COCO --model fast_rcnn --epochs 30 --batch_size 32 --output_dir outputs\fast_rcnn_coco
+python train.py --dataset COCO --model faster_rcnn --epochs 30 --batch_size 32 --output_dir outputs\faster_rcnn_coco
+python train.py --dataset COCO --model yolo --epochs 30 --batch_size 32 --output_dir outputs\yolo_coco
+python train.py --dataset COCO --model ssd --epochs 30 --batch_size 32 --output_dir outputs\ssd_coco
+python train.py --dataset COCO --model detr --epochs 30 --batch_size 32 --output_dir outputs\detr_coco
 ```
 
 ### 3. 同一模型切换不同 backbone
@@ -149,11 +178,11 @@ python train.py --dataset toy --model detr --epochs 3 --batch_size 2 --output_di
 下面以 `YOLO` 为例：
 
 ```powershell
-python train.py --dataset toy --model yolo --backbone resnet18 --epochs 3 --batch_size 2 --output_dir outputs\yolo_resnet18_toy
-python train.py --dataset toy --model yolo --backbone resnet34 --epochs 3 --batch_size 2 --output_dir outputs\yolo_resnet34_toy
-python train.py --dataset toy --model yolo --backbone resnet50 --epochs 3 --batch_size 2 --output_dir outputs\yolo_resnet50_toy
-python train.py --dataset toy --model yolo --backbone mobilenetv3 --epochs 3 --batch_size 2 --output_dir outputs\yolo_mobilenetv3_toy
-python train.py --dataset toy --model yolo --backbone cspdarknet --epochs 3 --batch_size 2 --output_dir outputs\yolo_cspdarknet_toy
+python train.py --dataset VOC --model yolo --backbone resnet18 --epochs 30 --batch_size 32 --output_dir outputs\yolo_resnet18_voc
+python train.py --dataset VOC --model yolo --backbone resnet34 --epochs 30 --batch_size 32 --output_dir outputs\yolo_resnet34_voc
+python train.py --dataset VOC --model yolo --backbone resnet50 --epochs 30 --batch_size 32 --output_dir outputs\yolo_resnet50_voc
+python train.py --dataset VOC --model yolo --backbone mobilenetv3 --epochs 30 --batch_size 32 --output_dir outputs\yolo_mobilenetv3_voc
+python train.py --dataset VOC --model yolo --backbone cspdarknet --epochs 30 --batch_size 32 --output_dir outputs\yolo_cspdarknet_voc
 ```
 
 ### 4. 开启 AMP 混合精度
@@ -212,12 +241,12 @@ python train.py --dataset toy --model faster_rcnn --resume outputs\faster_toy\be
 
 ```powershell
 python plot_results.py --mode model_compare --logs `
-outputs\rcnn_toy\rcnn_resnet50_toy_training_log.csv `
-outputs\fast_rcnn_toy\fast_rcnn_resnet50_toy_training_log.csv `
-outputs\faster_rcnn_toy\faster_rcnn_resnet50_toy_training_log.csv `
-outputs\yolo_toy\yolo_resnet50_toy_training_log.csv `
-outputs\ssd_toy\ssd_resnet50_toy_training_log.csv `
-outputs\detr_toy\detr_resnet50_toy_training_log.csv
+outputs\rcnn_toy\rcnn_resnet18_toy_training_log.csv `
+outputs\fast_rcnn_toy\fast_rcnn_resnet18_toy_training_log.csv `
+outputs\faster_rcnn_toy\faster_rcnn_resnet18_toy_training_log.csv `
+outputs\yolo_toy\yolo_mobilenetv3_toy_training_log.csv `
+outputs\ssd_toy\ssd_resnet18_toy_training_log.csv `
+outputs\detr_toy\detr_resnet18_toy_training_log.csv
 ```
 
 ### backbone 对比出图
@@ -260,6 +289,7 @@ CSV 会记录每个 epoch 的信息，便于后续画图和分析：
 
 ```text
 --model               模型名称，可选 rcnn / fast_rcnn / faster_rcnn / yolo / ssd / detr
+--backbone            backbone，可选 auto / resnet18 / resnet34 / resnet50 / mobilenetv3 / cspdarknet
 --dataset             数据集，可选 toy / VOC / COCO
 --epochs              训练轮数
 --batch_size          批大小
@@ -307,5 +337,5 @@ CSV 会记录每个 epoch 的信息，便于后续画图和分析：
 
 ```powershell
 conda activate torch290
-python train.py --dataset toy --model faster_rcnn --epochs 3 --batch_size 2 --output_dir outputs\quick_start
+python train.py --dataset toy --model faster_rcnn --backbone auto --epochs 3 --batch_size 2 --output_dir outputs\quick_start
 ```

@@ -8,6 +8,31 @@ def custom_collate_fn(batch):
     return tuple(zip(*batch))
 
 
+def coco_target_transform(target):
+    """专门为 COCO 数据集处理标签的转换器"""
+    boxes = []
+    labels = []
+    for obj in target:
+        # COCO 原生格式是 [x_min, y_min, width, height]
+        x, y, w, h = obj['bbox']
+
+        # 转换为 PyTorch 需要的 [x_min, y_min, x_max, y_max]
+        if w > 0 and h > 0:
+            boxes.append([x, y, x + w, y + h])
+            # COCO 的类别 ID 并不是连续的 (1~90中间有跳过)
+            labels.append(obj['category_id'])
+
+    target_dict = {}
+    if len(boxes) > 0:
+        target_dict['boxes'] = torch.tensor(boxes, dtype=torch.float32)
+        target_dict['labels'] = torch.tensor(labels, dtype=torch.int64)
+    else:
+        # 🔥 关键修复：如果没有边界框，必须生成 [0, 4] 形状的空张量！
+        target_dict['boxes'] = torch.zeros((0, 4), dtype=torch.float32)
+        target_dict['labels'] = torch.zeros((0,), dtype=torch.int64)
+
+    return target_dict
+
 class VOCDetectionTransform:
     def __call__(self, image, target):
         img_tensor = transforms.ToTensor()(image)
@@ -102,7 +127,7 @@ def get_num_classes(dataset_name):
     mapping = {
         "toy": 4,
         "VOC": 21,
-        "COCO": 81,
+        "COCO": 91,
     }
     if dataset_name not in mapping:
         raise ValueError(f"Unsupported Dataset: {dataset_name}")
@@ -142,7 +167,8 @@ def get_dataloader(
         dataset = datasets.CocoDetection(
             root=img_dir,
             annFile=ann_file,
-            transforms=COCODetectionTransform(),
+            transform=transforms.ToTensor(),
+            target_transform=coco_target_transform  # <--- 新增这一行
         )
     else:
         raise ValueError("Unsupported Dataset")

@@ -9,12 +9,13 @@ import torch.nn.functional as F
 from torchvision.transforms import functional as TF
 from tqdm import tqdm
 
-from models.detr_resnet import DETR_ResNet50
-from models.fast_rcnn import FastRCNN
-from models.faster_rcnn import FasterRCNN_ResNet50
-from models.rcnn import RCNN
-from models.ssd_resnet import SSD_ResNet50
-from models.yolo_resnet import YOLOBaseline
+from models.backbone import MODEL_BACKBONE_CHOICES, MODEL_RECOMMENDED_BACKBONES
+from models.detr_resnet import DETRDetector
+from models.fast_rcnn import FastRCNNDetector
+from models.faster_rcnn import FasterRCNNDetector
+from models.rcnn import RCNNDetector
+from models.ssd_resnet import SSDDetector
+from models.yolo_resnet import YOLODetector
 from utils.dataset import get_dataloader, get_num_classes
 
 
@@ -29,8 +30,8 @@ def parse_args():
     parser.add_argument(
         "--backbone",
         type=str,
-        default="resnet50",
-        choices=["resnet18", "resnet34", "resnet50", "mobilenetv3", "cspdarknet"],
+        default="auto",
+        choices=["auto", "resnet18", "resnet34", "resnet50", "mobilenetv3", "cspdarknet"],
     )
     parser.add_argument("--dataset", type=str, default="VOC", choices=["toy", "VOC", "COCO"])
     parser.add_argument("--epochs", type=int, default=5)
@@ -109,20 +110,21 @@ def load_checkpoint(checkpoint_path, model, optimizer, lr_scheduler, scaler, dev
 
 
 def create_model(model_name, num_classes, pretrained_backbone, backbone_name):
-    if model_name != "yolo" and backbone_name in {"mobilenetv3", "cspdarknet"}:
-        raise ValueError(f"Backbone {backbone_name} is currently only supported for YOLO.")
+    if backbone_name not in MODEL_BACKBONE_CHOICES[model_name]:
+        supported = ", ".join(MODEL_BACKBONE_CHOICES[model_name])
+        raise ValueError(f"Backbone {backbone_name} is not supported for {model_name}. Supported: {supported}.")
     if model_name == "rcnn":
-        return RCNN(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return RCNNDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "fast_rcnn":
-        return FastRCNN(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return FastRCNNDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "faster_rcnn":
-        return FasterRCNN_ResNet50(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return FasterRCNNDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "yolo":
-        return YOLOBaseline(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return YOLODetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "ssd":
-        return SSD_ResNet50(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return SSDDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     if model_name == "detr":
-        return DETR_ResNet50(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
+        return DETRDetector(num_classes=num_classes, pretrained_backbone=pretrained_backbone, backbone_name=backbone_name)
     raise ValueError(f"Unsupported model: {model_name}")
 
 
@@ -354,6 +356,12 @@ def compute_batch_loss(model_name, model, images, targets, device, use_amp, inpu
     raise ValueError(f"Unsupported model: {model_name}")
 
 
+def resolve_backbone_name(model_name, backbone_name):
+    if backbone_name == "auto":
+        return MODEL_RECOMMENDED_BACKBONES[model_name]
+    return backbone_name
+
+
 def validate_epoch(model_name, model, val_loader, device, use_amp, input_size, num_classes, non_blocking):
     if model_name == "faster_rcnn":
         model.train()
@@ -381,6 +389,7 @@ def validate_epoch(model_name, model, val_loader, device, use_amp, input_size, n
 
 def main():
     args = parse_args()
+    args.backbone = resolve_backbone_name(args.model, args.backbone)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pin_memory = device.type == "cuda"
     non_blocking = pin_memory

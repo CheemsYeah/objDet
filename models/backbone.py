@@ -10,6 +10,30 @@ from torchvision.models import (
 )
 
 
+SUPPORTED_RESNET_BACKBONES = ("resnet18", "resnet34", "resnet50")
+SUPPORTED_YOLO_BACKBONES = ("resnet18", "resnet34", "resnet50", "mobilenetv3", "cspdarknet")
+
+# Keep backbone recommendations close to model definitions so train/inference
+# can share one source of truth. These defaults are speed-first.
+MODEL_RECOMMENDED_BACKBONES = {
+    "rcnn": "resnet18",
+    "fast_rcnn": "resnet18",
+    "faster_rcnn": "resnet18",
+    "yolo": "mobilenetv3",
+    "ssd": "resnet18",
+    "detr": "resnet18",
+}
+
+MODEL_BACKBONE_CHOICES = {
+    "rcnn": SUPPORTED_RESNET_BACKBONES,
+    "fast_rcnn": SUPPORTED_RESNET_BACKBONES,
+    "faster_rcnn": SUPPORTED_RESNET_BACKBONES,
+    "yolo": SUPPORTED_YOLO_BACKBONES,
+    "ssd": SUPPORTED_RESNET_BACKBONES,
+    "detr": SUPPORTED_RESNET_BACKBONES,
+}
+
+
 BACKBONE_CONFIGS = {
     "resnet18": {
         "builder": resnet18,

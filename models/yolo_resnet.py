@@ -23,9 +23,9 @@ def build_yolo_backbone(backbone_name, pretrained_backbone):
     raise ValueError(f"Unsupported YOLO backbone: {backbone_name}")
 
 
-class YOLOBaseline(nn.Module):
+class YOLODetector(nn.Module):
     def __init__(self, num_classes, num_bboxes=2, pretrained_backbone=False, backbone_name="resnet50"):
-        super(YOLOBaseline, self).__init__()
+        super(YOLODetector, self).__init__()
         self.num_classes = num_classes
         self.num_bboxes = num_bboxes
         self.S = 7
@@ -58,3 +58,7 @@ class YOLOBaseline(nn.Module):
         out = self.yolo_head(feat)
         out = out.permute(0, 2, 3, 1)
         return out
+
+
+class YOLOBaseline(YOLODetector):
+    pass

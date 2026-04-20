@@ -6,9 +6,9 @@ from torchvision.models.detection.rpn import AnchorGenerator
 from models.backbone import ResNetBackbone
 
 
-class FasterRCNN_ResNet50(nn.Module):
+class FasterRCNNDetector(nn.Module):
     def __init__(self, num_classes, pretrained_backbone=False, backbone_name="resnet50"):
-        super(FasterRCNN_ResNet50, self).__init__()
+        super(FasterRCNNDetector, self).__init__()
 
         # 1. 实例化我们统一的 ResNet-50 Backbone
         # 注意：torchvision 的 FasterRCNN 要求 backbone 包含 out_channels 属性
@@ -56,3 +56,7 @@ class FasterRCNN_ResNet50(nn.Module):
         # 如果传入 targets，返回的是 RPN Loss 和 Fast R-CNN Loss 的总和
         # 如果不传入 targets (推理阶段)，返回的是预测的 boxes, labels, scores
         return self.model(images, targets)
+
+
+class FasterRCNN_ResNet50(FasterRCNNDetector):
+    pass

@@ -46,3 +46,7 @@ class RCNN(nn.Module):
         bbox_deltas = self.bbox_regressor(features)  # [N, num_classes * 4]
 
         return cls_scores, bbox_deltas
+
+
+class RCNNDetector(RCNN):
+    pass

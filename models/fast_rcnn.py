@@ -61,3 +61,7 @@ class FastRCNN(nn.Module):
         bbox_deltas = self.bbox_regressor(fc_features)
 
         return cls_scores, bbox_deltas
+
+
+class FastRCNNDetector(FastRCNN):
+    pass
